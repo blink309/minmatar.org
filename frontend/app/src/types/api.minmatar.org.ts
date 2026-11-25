@@ -921,6 +921,8 @@ export interface FleetRequest {
     open_to_alliance?:  boolean;
     on_schedule?:       boolean;
     voice_option_id?:   number | null;
+    voice_channel_id?:  string | null;
+    mumble_open?:       boolean;
 }
 
 export type FleetPatchRequest = ApiRequest<'UpdateEveFleetRequest'>
@@ -3405,6 +3407,8 @@ export type UniverseStructureReport = ApiRequest<'StructureReportRequest'>
 export type UniverseTimer = ApiResponse<'UniverseTimer'>
 export type UniverseTimerList = ApiResponse<'UniverseTimerList'>
 export type UniverseMoon = ApiResponse<'UniverseMoon'>
+export type UniverseMoonChoice = ApiResponse<'MoonChoice'>
+export type UniverseMoonChoiceList = ApiResponse<'MoonChoiceList'>
 export type MoonProfit = ApiResponse<'MoonProfit'>
 export type MoonMetenoxKill = ApiResponse<'MoonMetenoxKill'>
 export type UniverseMoonList = ApiResponse<'UniverseMoonList'>

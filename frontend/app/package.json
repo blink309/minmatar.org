@@ -8,7 +8,7 @@
     "introspect": "drizzle-kit introspect",
     "introspectsde": "drizzle-kit introspect --config=sde.drizzle.config.ts",
     "start": "astro dev",
-    "check": "export $(cat .env.BUILDONLY) && node scripts/check_ratchet.mjs",
+    "check": "export $(cat .env.BUILDONLY) && NODE_OPTIONS=${NODE_OPTIONS:---max-old-space-size=6144} node scripts/check_ratchet.mjs",
     "check:baseline": "export $(cat .env.BUILDONLY) && node scripts/check_ratchet.mjs --update",
     "build": "export $(cat .env.BUILDONLY) && astro build",
     "prodbuild": "bash -c 'set -a; . ./.env.BUILDONLY; [ -f .env ] && . ./.env; set +a; astro build'",

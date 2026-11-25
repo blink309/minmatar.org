@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.db.models import signals
 from django.test import Client
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from eveuniverse.models import EveConstellation, EveRegion, EveSolarSystem
 
 from app.test import TestCase
@@ -25,6 +26,7 @@ from moons.models import (
 )
 from structures.models import EveStructure, EveStructureTimer
 from structures.reported import (
+    METENOX_MOON_DRILL,
     ReportDetails,
     absorb_reported_structure,
     candidates,
@@ -848,3 +850,231 @@ class MoonLeakRegressionTests(UniverseFixture):
             response = self.get(self.pilots["member"], "/api/moons")
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.json()[0]["detail"])
+
+
+def _drill(moon, **overrides):
+    """A reported Metenox on `moon`. Ids stay under the reported range."""
+    _drill.next_id -= 1
+    values = {
+        "id": _drill.next_id,
+        "system_id": AMAMAKE,
+        "system_name": moon.system,
+        "type_id": METENOX_MOON_DRILL,
+        "type_name": "Metenox Moon Drill",
+        "name": f"{moon.system} - Metenox Moon Drill",
+        "visibility": "alliance",
+        "source": "reported",
+        "moon": moon,
+        "owner_corporation_name": "Drill Corp",
+        "owner_alliance_name": "Drill Alliance",
+        "reported_at": timezone.now(),
+        "last_confirmed_at": timezone.now(),
+    }
+    values.update(overrides)
+    return EveStructure.objects.create(**values)
+
+
+_drill.next_id = EveStructure.REPORTED_ID_BASE - 20
+
+
+@patch(ALLOW, return_value=True)
+class MetenoxDrillTests(UniverseFixture):
+    """A moon-row report stores the moon on the Metenox, and the moons
+    list shows that owner only to people who see moon contents."""
+
+    def setUp(self):
+        super().setUp()
+        self.moon = EveMoon.objects.create(
+            system="Amamake", planet="VII", moon=3
+        )
+
+    def _report(self, user, **overrides):
+        payload = {
+            "system_name": "Amamake",
+            "type_id": METENOX_MOON_DRILL,
+            "corporation_name": "Hostile Drillers",
+            "alliance_name": "Hostile Alliance",
+            "moon_id": self.moon.id,
+        }
+        payload.update(overrides)
+        return self.send(
+            user, "post", "/api/universe/structures/report", payload
+        )
+
+    def test_report_stores_the_moon(self, _):
+        response = self._report(self.pilots["member"])
+        self.assertEqual(response.status_code, 200, response.content)
+        row = EveStructure.objects.get(moon=self.moon)
+        self.assertEqual(row.type_id, METENOX_MOON_DRILL)
+        self.assertEqual(row.owner_corporation_name, "Hostile Drillers")
+        self.assertEqual(row.owner_alliance_name, "Hostile Alliance")
+        self.assertEqual(row.system_name, "Amamake")
+
+    def test_report_without_a_moon_leaves_the_link_empty(self, _):
+        response = self._report(self.pilots["member"], moon_id=None)
+        self.assertEqual(response.status_code, 200, response.content)
+        row = EveStructure.objects.get(type_id=METENOX_MOON_DRILL)
+        self.assertIsNone(row.moon_id)
+
+    def test_other_types_ignore_the_moon(self, _):
+        response = self._report(
+            self.pilots["member"],
+            type_id=35833,
+            name="Amamake - Fortizar",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        row = EveStructure.objects.get(name="Amamake - Fortizar")
+        self.assertIsNone(row.moon_id)
+
+    def test_unknown_moon_is_rejected_and_stores_nothing(self, _):
+        before = EveStructure.objects.count()
+        response = self._report(self.pilots["member"], moon_id=999999)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(EveStructure.objects.count(), before)
+
+    def test_moon_in_another_system_is_rejected(self, _):
+        other = EveMoon.objects.create(system="Teonusude", planet="I", moon=1)
+        before = EveStructure.objects.count()
+        response = self._report(self.pilots["member"], moon_id=other.id)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("not in this system", response.json()["detail"])
+        self.assertEqual(EveStructure.objects.count(), before)
+
+    def test_picking_an_existing_drill_links_the_moon(self, _):
+        row = _drill(self.moon, name="Amamake - standing drill")
+        row.moon = None
+        row.save(update_fields=["moon"])
+        response = self._report(self.pilots["member"], structure_id=row.id)
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertEqual(row.moon_id, self.moon.id)
+
+    def test_rereport_does_not_move_a_drill_that_has_a_moon(self, _):
+        other = EveMoon.objects.create(system="Amamake", planet="VIII", moon=2)
+        row = _drill(self.moon, name="Amamake - standing drill")
+        response = self._report(
+            self.pilots["member"], structure_id=row.id, moon_id=other.id
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertEqual(row.moon_id, self.moon.id)
+
+    def test_moon_choices_list_one_system(self, _):
+        EveMoon.objects.create(system="Amamake", planet="VIII", moon=9)
+        EveMoon.objects.create(system="amamake", planet="II", moon=1)
+        EveMoon.objects.create(system="Taisy", planet="I", moon=3)
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Amamake",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        labels = [
+            (row["planet"], row["moon"]) for row in response.json()["moons"]
+        ]
+        self.assertEqual(labels, [("II", 1), ("VII", 3), ("VIII", 9)])
+        self.assertTrue(all(row["system"] for row in response.json()["moons"]))
+
+    def test_moon_choices_for_an_unknown_system_are_empty(self, _):
+        response = self.get(
+            self.pilots["member"], "/api/universe/moons/choices?system_name="
+        )
+        self.assertEqual(response.json()["moons"], [])
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Nowhere",
+        )
+        self.assertEqual(response.json()["moons"], [])
+
+    def test_moon_choices_need_moons_view(self, allow):
+        allow.side_effect = lambda _user, feature: feature != "moons.view"
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Amamake",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_refused_reporter_stores_nothing(self, allow):
+        allow.return_value = False
+        before = EveStructure.objects.count()
+        response = self._report(self.pilots["member"])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(EveStructure.objects.count(), before)
+
+    def test_contents_viewer_sees_the_latest_drill(self, _):
+        empty = self.get(self.pilots["director"], "/api/universe/moons")
+        self.assertIsNone(empty.json()["moons"][0]["drill"])
+        now = timezone.now()
+        _drill(
+            self.moon,
+            owner_corporation_name="Old Corp",
+            owner_alliance_name="Old Alliance",
+            reported_at=now - timedelta(days=4),
+            last_confirmed_at=now - timedelta(days=4),
+        )
+        latest = _drill(
+            self.moon,
+            owner_corporation_name="New Corp",
+            owner_alliance_name="New Alliance",
+            reported_at=now - timedelta(days=1),
+            last_confirmed_at=now - timedelta(hours=1),
+        )
+        body = self.get(self.pilots["director"], "/api/universe/moons").json()[
+            "moons"
+        ][0]["drill"]
+        self.assertEqual(body["corporation_name"], "New Corp")
+        self.assertEqual(body["alliance_name"], "New Alliance")
+        # The wire format keeps milliseconds, not the full microsecond.
+        reported = parse_datetime(body["reported_at"])
+        self.assertAlmostEqual(
+            reported.timestamp(), latest.reported_at.timestamp(), delta=1
+        )
+        self.assertGreater(reported, now - timedelta(days=2))
+
+    def test_pilot_does_not_see_the_drill(self, _):
+        _drill(self.moon)
+        moon = self.get(self.pilots["member"], "/api/universe/moons").json()[
+            "moons"
+        ][0]
+        self.assertIsNone(moon["drill"])
+        self.assertIsNone(moon["ores"])
+
+    def test_a_removed_drill_is_hidden(self, _):
+        now = timezone.now()
+        kept = _drill(
+            self.moon,
+            owner_corporation_name="Kept Corp",
+            owner_alliance_name="",
+            reported_at=now - timedelta(days=3),
+            last_confirmed_at=now - timedelta(days=3),
+        )
+        gone = _drill(
+            self.moon,
+            owner_corporation_name="Gone Corp",
+            reported_at=now,
+            last_confirmed_at=now,
+        )
+        gone.delete()
+        body = self.get(self.pilots["director"], "/api/universe/moons").json()[
+            "moons"
+        ][0]["drill"]
+        self.assertEqual(body["corporation_name"], kept.owner_corporation_name)
+        self.assertEqual(body["alliance_name"], "")
+
+    def test_esi_sync_keeps_the_moon(self, _):
+        self.reported.moon = self.moon
+        self.reported.save()
+        esi = EveStructure.objects.create(
+            id=1050000000002,
+            system_id=TU_O0T,
+            system_name="TU-O0T",
+            type_id=35832,
+            type_name="Astrahus",
+            name="TU-O0T - Cerulean Cave",
+            corporation=self.corp,
+        )
+        self.assertEqual(absorb_reported_structure(esi), 1)
+        esi.refresh_from_db()
+        self.assertEqual(esi.moon_id, self.moon.id)
+        self.assertFalse(
+            EveStructure.objects.filter(id=self.reported.id).exists()
+        )

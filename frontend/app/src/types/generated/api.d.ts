@@ -3192,7 +3192,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Put a member on leave or take them off leave */
+        /** Put a member on leave, make them alumni, or restore them */
         post: operations["eveonline_endpoints_corporations_post_corp_member_status_post_corp_member_status"];
         delete?: never;
         options?: never;
@@ -4020,7 +4020,7 @@ export interface paths {
         };
         /**
          * Get Fleet Voice Options
-         * @description The voice options the fleet form offers (active ones only). Same access as /types.
+         * @description The voice options the fleet form offers (active ones only), with each Discord option's voice channels. Same access as /types.
          */
         get: operations["fleets_endpoints_reference_get_fleet_voice_options_get_fleet_voice_options"];
         put?: never;
@@ -11334,11 +11334,34 @@ export interface paths {
          * List Moons
          * @description One page of the moons we know about, searched by system, planet,
          *     moon number and (for those who see contents) ore. Contents (ores,
-         *     scans, ISK a month, Metenox kills) are null unless the caller may see
-         *     them, so the shape never changes; only they can filter by rarity and
-         *     hide moons whose fuel costs more than they earn.
+         *     scans, ISK a month, Metenox kills, the reported drill) are null unless
+         *     the caller may see them, so the shape never changes; only they can
+         *     filter by rarity and hide moons whose fuel costs more than they earn.
          */
         get: operations["universe_router_list_moons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/universe/moons/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Moon Choices
+         * @description Moons we have scanned in one system, for the Metenox report picker.
+         *
+         *     Only pilots who can see moons get the list. An unknown system, or one
+         *     with no scans, is an empty list so the report can still be saved.
+         */
+        get: operations["universe_router_moon_choices"];
         put?: never;
         post?: never;
         delete?: never;
@@ -16194,7 +16217,12 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "leave" | "restore";
+            action: "leave" | "alumni" | "restore";
+            /**
+             * Reason
+             * @default
+             */
+            reason?: string;
         };
         /** CorporationMemberStatusResponse */
         CorporationMemberStatusResponse: {
@@ -16770,6 +16798,11 @@ export interface components {
             invite_only?: boolean;
             /** Location Id */
             location_id?: number | null;
+            /**
+             * Mumble Open
+             * @default false
+             */
+            mumble_open?: boolean;
             /** Objective */
             objective?: string | null;
             /**
@@ -16792,6 +16825,8 @@ export interface components {
             /** Track Mining */
             track_mining?: boolean | null;
             type: components["schemas"]["EveFleetType"];
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
             /** Voice Option Id */
             voice_option_id?: number | null;
         };
@@ -18339,6 +18374,11 @@ export interface components {
             /** Location */
             location: string;
             /**
+             * Mumble Open
+             * @default false
+             */
+            mumble_open?: boolean;
+            /**
              * Not Copied
              * @default []
              */
@@ -18373,6 +18413,10 @@ export interface components {
              * @default false
              */
             uses_mumble?: boolean;
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
+            /** Voice Channel Name */
+            voice_channel_name?: string | null;
             /** Voice Option Id */
             voice_option_id?: number | null;
         };
@@ -18441,6 +18485,11 @@ export interface components {
             invite_only?: boolean;
             /** Location */
             location: string;
+            /**
+             * Mumble Open
+             * @default false
+             */
+            mumble_open?: boolean;
             /** My Invite Answer */
             my_invite_answer?: string | null;
             /** My Invite Source */
@@ -18477,6 +18526,10 @@ export interface components {
              * @default false
              */
             uses_mumble?: boolean;
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
+            /** Voice Channel Name */
+            voice_channel_name?: string | null;
             /** Voice Option Id */
             voice_option_id?: number | null;
         };
@@ -18846,6 +18899,11 @@ export interface components {
             id: number;
             /** Location */
             location: string;
+            /**
+             * Mumble Open
+             * @default false
+             */
+            mumble_open?: boolean;
             /** Objective */
             objective?: string | null;
             /**
@@ -18876,6 +18934,10 @@ export interface components {
              * @default false
              */
             uses_mumble?: boolean;
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
+            /** Voice Channel Name */
+            voice_channel_name?: string | null;
             /** Voice Option Id */
             voice_option_id?: number | null;
         };
@@ -21309,9 +21371,18 @@ export interface components {
             host_group_id?: number | null;
             /** Location Id */
             location_id?: number | null;
+            /**
+             * Mumble Open
+             * @default false
+             */
+            mumble_open?: boolean;
             /** Objective */
             objective?: string | null;
             type: components["schemas"]["EveFleetType"];
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
+            /** Voice Option Id */
+            voice_option_id?: number | null;
         };
         /**
          * FleetPingPreviewResponse
@@ -21404,8 +21475,24 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** FleetVoiceChannelResponse */
+        FleetVoiceChannelResponse: {
+            /** Category */
+            category: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** FleetVoiceOptionResponse */
         FleetVoiceOptionResponse: {
+            /**
+             * Channels
+             * @default []
+             */
+            channels?: components["schemas"]["FleetVoiceChannelResponse"][];
+            /** Default Channel Id */
+            default_channel_id?: string | null;
             /** Id */
             id: number;
             /** Is Default */
@@ -22277,7 +22364,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "promote" | "leave" | "restore";
+            action: "promote" | "leave" | "alumni" | "restore";
             /**
              * Reason
              * @default
@@ -26315,12 +26402,49 @@ export interface components {
              */
             supply?: number;
         };
+        /**
+         * MoonChoice
+         * @description One known moon a Metenox report can be tied to.
+         */
+        MoonChoice: {
+            /** Id */
+            id: number;
+            /** Moon */
+            moon: number;
+            /** Planet */
+            planet: string;
+            /** System */
+            system: string;
+        };
+        /** MoonChoiceList */
+        MoonChoiceList: {
+            /** Moons */
+            moons: components["schemas"]["MoonChoice"][];
+        };
         /** MoonDetailResponse */
         MoonDetailResponse: {
             /** Monthly Revenue */
             monthly_revenue: number | null;
             /** Reported By */
             reported_by: string;
+        };
+        /**
+         * MoonDrill
+         * @description A Metenox Moon Drill a pilot reported on this moon.
+         */
+        MoonDrill: {
+            /**
+             * Alliance Name
+             * @default
+             */
+            alliance_name?: string;
+            /**
+             * Corporation Name
+             * @default
+             */
+            corporation_name?: string;
+            /** Reported At */
+            reported_at?: string | null;
         };
         /** MoonMetenoxKill */
         MoonMetenoxKill: {
@@ -31909,6 +32033,8 @@ export interface components {
              * @default
              */
             fitting?: string;
+            /** Moon Id */
+            moon_id?: number | null;
             /**
              * Name
              * @default
@@ -33926,6 +34052,7 @@ export interface components {
         };
         /** UniverseMoon */
         UniverseMoon: {
+            drill?: components["schemas"]["MoonDrill"] | null;
             /** Id */
             id: number;
             /** Last Scanned At */
@@ -34193,6 +34320,8 @@ export interface components {
             host_group_id?: number | null;
             /** Location Id */
             location_id?: number | null;
+            /** Mumble Open */
+            mumble_open?: boolean | null;
             /** Objective */
             objective?: string | null;
             /** On Schedule */
@@ -34206,6 +34335,8 @@ export interface components {
             /** Track Mining */
             track_mining?: boolean | null;
             type?: components["schemas"]["EveFleetType"] | null;
+            /** Voice Channel Id */
+            voice_channel_id?: string | null;
             /** Voice Option Id */
             voice_option_id?: number | null;
         };
@@ -63120,6 +63251,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UniverseMoonList"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    universe_router_moon_choices: {
+        parameters: {
+            query?: {
+                system_name?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoonChoiceList"];
                 };
             };
             /** @description Forbidden */

@@ -5,6 +5,9 @@ pilot can see in space: the system, the type and the name. Reported rows
 get ids from a far-negative range (EveStructure.REPORTED_ID_BASE) and are
 always alliance-wide. When the hourly ESI sync later meets the same
 structure, the reported row is folded into the ESI row.
+
+A Metenox Moon Drill reported from a moon row stores that moon, so the
+moons tab can show who holds the drill.
 """
 
 from __future__ import annotations
@@ -19,9 +22,14 @@ from django.db.models import Min
 from django.utils import timezone
 
 from eveonline.models import EveCorporation
+from moons.models import EveMoon
 from structures.models import EveStructure, EveStructureTimer
 
 logger = logging.getLogger(__name__)
+
+# Metenox Moon Drill. A report opened from a moon row links this type to
+# that moon; every other type ignores the moon.
+METENOX_MOON_DRILL = 81826
 
 # Types a pilot can report, by type id.
 REPORTABLE_TYPES = {
@@ -34,7 +42,7 @@ REPORTABLE_TYPES = {
     35835: "Athanor",
     35836: "Tatara",
     35841: "Ansiblex Jump Gate",
-    81826: "Metenox Moon Drill",
+    METENOX_MOON_DRILL: "Metenox Moon Drill",
 }
 
 
@@ -359,8 +367,27 @@ def create_reported(
     raise ReportError("Could not save the report. Try again.")
 
 
+def _link_moon(structure: EveStructure, moon_id: int) -> None:
+    """Point a Metenox drill at the moon it was reported from.
+
+    The caller has already checked the structure is a Metenox Moon Drill.
+    """
+    moon = EveMoon.objects.filter(pk=moon_id).first()
+    if moon is None:
+        raise ReportError("We do not know that moon.")
+    if moon.system.strip().lower() != structure.system_name.strip().lower():
+        raise ReportError("That moon is not in this system.")
+    if structure.moon_id != moon.id:
+        structure.moon = moon
+        structure.save(update_fields=["moon"])
+
+
 def record_report(
-    user, details: ReportDetails, picked: Optional[EveStructure], visible
+    user,
+    details: ReportDetails,
+    picked: Optional[EveStructure],
+    visible,
+    moon_id: Optional[int] = None,
 ) -> EveStructure:
     """
     Store a report. `picked` is the row the reporter chose from the
@@ -368,11 +395,37 @@ def record_report(
     reporter's visible queryset. A new report still checks the rows the
     reporter cannot see, and the answer to the reporter is the same either
     way, so a report never tells them a hidden structure exists.
+
+    `moon_id` ties a Metenox Moon Drill to that moon when the drill has
+    none yet. A drill that already names a moon keeps it. Other types
+    ignore it. An unknown moon, or one in another system, is an error and
+    the report is not stored.
     """
+    # Name lookup (ESI) stays outside the transaction.
     details = _clean(details)
     system_id = solar_system_id(details.system_name)
     if system_id is None:
         raise ReportError("We do not know that system. Check its spelling.")
+    with transaction.atomic():
+        structure = _store_report(user, details, picked, visible, system_id)
+        # A later report can fill in the moon. It does not move a drill
+        # that already has one.
+        if (
+            moon_id
+            and structure.type_id == METENOX_MOON_DRILL
+            and structure.moon_id is None
+        ):
+            _link_moon(structure, moon_id)
+        return structure
+
+
+def _store_report(
+    user,
+    details: ReportDetails,
+    picked: Optional[EveStructure],
+    visible,
+    system_id: int,
+) -> EveStructure:
     if picked is not None:
         return apply_report(picked, details, user)
 
@@ -424,6 +477,8 @@ def absorb_reported_structure(esi_structure: EveStructure) -> int:
             esi_structure.affiliated_alliance_name = (
                 row.affiliated_alliance_name
             )
+        if row.moon_id:
+            esi_structure.moon_id = row.moon_id
         esi_structure.save()
         row.delete()
     logger.info(

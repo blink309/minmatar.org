@@ -1,0 +1,67 @@
+---
+/**
+ * The reported Metenox on a moon row: owner corporation and alliance, and
+ * when it was reported. `compact` is the one-line form shown on a phone,
+ * where the Metenox column is hidden.
+ */
+import { i18n } from '@helpers/i18n'
+const { t } = i18n(Astro.url)
+
+interface Props {
+    name: string;
+    reported_at?: string | null;
+    compact?: boolean;
+}
+
+const { name, reported_at = null, compact = false } = Astro.props
+
+import LocalTime from '@components/blocks/LocalTime.astro'
+
+const when = reported_at ? new Date(reported_at) : null
+---
+
+{compact ? (
+    <span class="[ moon-drill moon-drill--phone ]">
+        {name}
+        {when && (
+            <span>
+                {' · '}
+                {t('universe.moons.drill_reported')}
+                {' '}
+                <LocalTime eve_time={when} format="datetime" />
+            </span>
+        )}
+    </span>
+) : (
+    <span class="[ moon-drill ]">
+        {name}
+        {when && (
+            <small>
+                {t('universe.moons.drill_reported')}
+                {' '}
+                <LocalTime eve_time={when} format="datetime" />
+            </small>
+        )}
+    </span>
+)}
+
+<style lang="scss">
+    .moon-drill small {
+        display: block;
+        font-size: var(--step--2);
+        color: var(--foreground);
+    }
+
+    .moon-drill--phone {
+        display: none;
+        font-size: var(--step--1);
+        color: var(--foreground);
+    }
+
+    /* Same width ManageTable uses to hide .is-wide columns. */
+    @media (max-width: 48rem) {
+        .moon-drill--phone {
+            display: block;
+        }
+    }
+</style>

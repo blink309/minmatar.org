@@ -1,10 +1,12 @@
 ---
 /**
  * Universe > Moons. Everyone who sees moons sees which ones exist and who
- * reported them; rarity, ores, scans, net a month and Metenox kills come
- * back from the API only for those allowed (Strategic FCs, structure
- * managers). Those can hide moons whose fuel costs more than they earn
- * (on by default) and open a row on Profit / Metenox / Scans tabs.
+ * reported them; rarity, ores, scans, net a month, Metenox kills and the
+ * reported drill come back from the API only for those allowed (Strategic
+ * FCs, structure managers). Those can hide moons whose fuel costs more
+ * than they earn (on by default) and open a row on Profit / Metenox /
+ * Scans tabs. Report drill opens the structure report already set to a
+ * Metenox Moon Drill in that system.
  */
 import { i18n } from '@helpers/i18n'
 const { t, translatePath } = i18n(Astro.url)
@@ -21,6 +23,11 @@ const { auth_token } = get_request_user(Astro)
 if (!auth_token) return HTTP_403_Forbidden()
 const gates = await get_gates(Astro)
 if (!can(gates, 'moons.view')) return HTTP_403_Forbidden()
+// Same gate as Report a structure. The owner that comes back is still
+// hidden from anyone who cannot see moon contents.
+const can_report_drill = can(gates, 'universe.structures')
+// Metenox Moon Drill, REPORTABLE_TYPES in backend/structures/reported.py.
+const METENOX_MOON_DRILL = 81826
 
 const PARTIAL_URL = translatePath('/partials/universe_moons_component/')
 const REPORT_URL = translatePath('/partials/universe_moon_report_component/')
@@ -77,6 +84,14 @@ const quality = (moon: UniverseMoon) => {
 }
 const isk = (value: number | null | undefined) => format_isk(value)
 const DAY = 24 * 60 * 60 * 1000
+const drill_name = (moon: UniverseMoon) => {
+    const drill = moon.drill
+    if (!drill) return ''
+    const corp = drill.corporation_name
+    const alliance = drill.alliance_name
+    if (corp && alliance && corp !== alliance) return `${corp} · ${alliance}`
+    return alliance || corp || t('universe.moons.drill_unnamed')
+}
 const holder = (moon: UniverseMoon) => {
     const kill = moon.metenox_kills?.[0]
     if (!kill) return null
@@ -124,6 +139,9 @@ import SectionTabPanel from '@components/blocks/SectionTabPanel.astro'
 import Switch from '@components/blocks/Switch.astro'
 import MoonProfitTable from '@components/blocks/universe/MoonProfitTable.astro'
 import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro'
+import MoonDrillSummary from '@components/blocks/universe/MoonDrillSummary.astro'
+import StructureReportDialog from '@components/blocks/structures/StructureReportDialog.astro'
+import { moon_choice_label } from '@helpers/universe_moon_label'
 ---
 
 <div id="universe-moons">
@@ -169,10 +187,25 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
                                 const who = moon.reported_by?.character_id
                                     ? <CharacterPicture character_id={moon.reported_by.character_id} character_name={moon.reported_by.name} size={32} />
                                     : null
+                                const report_drill = can_report_drill && (
+                                    <div class="[ universe-drill-action ]">
+                                        <StructureReportDialog
+                                            label={t('universe.moons.report_drill')}
+                                            size="sm"
+                                            color="transparent"
+                                            styless
+                                            form_id={`moon-drill-${moon.id}`}
+                                            type_id={METENOX_MOON_DRILL}
+                                            system_name={moon.system}
+                                            moon_id={moon.id}
+                                            moon_label={moon_choice_label(moon.system, moon.planet, moon.moon)}
+                                        />
+                                    </div>
+                                )
                                 return contents
                                     ? (
                                         <ExpandRow colspan={columns.length + 1} label={name_of(moon)}>
-                                            <td>
+                                            <td class="[ universe-moon-cell ]">
                                                 <StylessButton type="button" class="[ manage-who ]" x-on:click="open = !open">
                                                     <img src={MOON_ICON} alt="" width="40" height="40" loading="lazy" />
                                                     <span class="[ manage-who__text ]">
@@ -180,15 +213,19 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
                                                         <span class="[ manage-who__sub ]">{moon.system}</span>
                                                     </span>
                                                 </StylessButton>
+                                                {moon.drill && <MoonDrillSummary name={drill_name(moon)} reported_at={moon.drill.reported_at} compact />}
+                                                {report_drill}
                                             </td>
                                             <td>
                                                 <span>{moon.rarity ? `R${moon.rarity}` : '—'}</span>
                                                 <small class="[ universe-small ]">{quality(moon)}</small>
                                             </td>
                                             <td class="[ is-wide ]">
-                                                {holder(moon)
-                                                    ? <span>{holder(moon)?.name}<small class="[ universe-small ]">{holder(moon)?.note}</small></span>
-                                                    : <span class="[ universe-muted ]">{t('universe.moons.none_seen')}</span>
+                                                {moon.drill
+                                                    ? <MoonDrillSummary name={drill_name(moon)} reported_at={moon.drill.reported_at} />
+                                                    : holder(moon)
+                                                        ? <span>{holder(moon)?.name}<small class="[ universe-small ]">{holder(moon)?.note}</small></span>
+                                                        : <span class="[ universe-muted ]">{t('universe.moons.none_seen')}</span>
                                                 }
                                             </td>
                                             <td class="[ is-wide ]">
@@ -243,7 +280,7 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
                                     : (
                                         <tbody>
                                             <tr class="[ manage-row ]">
-                                                <td>
+                                                <td class="[ universe-moon-cell ]">
                                                     <span class="[ manage-who ]">
                                                         <img src={MOON_ICON} alt="" width="40" height="40" loading="lazy" />
                                                         <span class="[ manage-who__text ]">
@@ -251,6 +288,7 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
                                                             <span class="[ manage-who__sub ]">{moon.system}</span>
                                                         </span>
                                                     </span>
+                                                    {report_drill}
                                                 </td>
                                                 <td class="[ is-wide ]"><span class="[ universe-who ]">{who}{moon.reported_by?.name ?? '—'}</span></td>
                                                 <td class="[ num ]">{moon.last_scanned_at ? <LocalTime eve_time={new Date(moon.last_scanned_at)} format="datetime" /> : '—'}</td>
@@ -296,6 +334,14 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
         }
     }
 
+    /* The search, the hide switch and Report a moon share one line until
+       the table drops to its phone columns. */
+    @media (max-width: 48rem) {
+        .universe-toolbar {
+            flex-wrap: wrap;
+        }
+    }
+
     .universe-page {
         color: var(--foreground);
     }
@@ -335,6 +381,22 @@ import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro
         display: inline-flex;
         align-items: center;
         gap: var(--space-xs);
+    }
+
+    .universe-drill-action {
+        margin-block-start: var(--space-2xs);
+    }
+
+    .universe-moon-cell {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .universe-drill-action :global(.styless-button) {
+        color: var(--highlight);
+        font-size: var(--step--1);
+        text-decoration: underline;
+        white-space: normal;
     }
 
     .universe-moon-detail {

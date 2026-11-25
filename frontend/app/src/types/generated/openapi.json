@@ -10095,9 +10095,15 @@
           "action": {
             "enum": [
               "leave",
+              "alumni",
               "restore"
             ],
             "title": "Action",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
             "type": "string"
           }
         },
@@ -11687,6 +11693,11 @@
             ],
             "title": "Location Id"
           },
+          "mumble_open": {
+            "default": false,
+            "title": "Mumble Open",
+            "type": "boolean"
+          },
           "objective": {
             "anyOf": [
               {
@@ -11738,6 +11749,17 @@
           },
           "type": {
             "$ref": "#/components/schemas/EveFleetType"
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
           },
           "voice_option_id": {
             "anyOf": [
@@ -15447,6 +15469,11 @@
             "title": "Location",
             "type": "string"
           },
+          "mumble_open": {
+            "default": false,
+            "title": "Mumble Open",
+            "type": "boolean"
+          },
           "not_copied": {
             "default": [],
             "items": {
@@ -15532,6 +15559,28 @@
             "default": false,
             "title": "Uses Mumble",
             "type": "boolean"
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
+          },
+          "voice_channel_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Name"
           },
           "voice_option_id": {
             "anyOf": [
@@ -15754,6 +15803,11 @@
             "title": "Location",
             "type": "string"
           },
+          "mumble_open": {
+            "default": false,
+            "title": "Mumble Open",
+            "type": "boolean"
+          },
           "my_invite_answer": {
             "anyOf": [
               {
@@ -15864,6 +15918,28 @@
             "default": false,
             "title": "Uses Mumble",
             "type": "boolean"
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
+          },
+          "voice_channel_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Name"
           },
           "voice_option_id": {
             "anyOf": [
@@ -16825,6 +16901,11 @@
             "title": "Location",
             "type": "string"
           },
+          "mumble_open": {
+            "default": false,
+            "title": "Mumble Open",
+            "type": "boolean"
+          },
           "objective": {
             "anyOf": [
               {
@@ -16902,6 +16983,28 @@
             "default": false,
             "title": "Uses Mumble",
             "type": "boolean"
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
+          },
+          "voice_channel_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Name"
           },
           "voice_option_id": {
             "anyOf": [
@@ -23106,6 +23209,11 @@
             ],
             "title": "Location Id"
           },
+          "mumble_open": {
+            "default": false,
+            "title": "Mumble Open",
+            "type": "boolean"
+          },
           "objective": {
             "anyOf": [
               {
@@ -23119,6 +23227,28 @@
           },
           "type": {
             "$ref": "#/components/schemas/EveFleetType"
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
+          },
+          "voice_option_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Option Id"
           }
         },
         "required": [
@@ -23387,8 +23517,50 @@
         "title": "FleetPublicKillsResponse",
         "type": "object"
       },
+      "FleetVoiceChannelResponse": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "FleetVoiceChannelResponse",
+        "type": "object"
+      },
       "FleetVoiceOptionResponse": {
         "properties": {
+          "channels": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FleetVoiceChannelResponse"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "default_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Channel Id"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -25503,6 +25675,7 @@
             "enum": [
               "promote",
               "leave",
+              "alumni",
               "restore"
             ],
             "title": "Action",
@@ -36209,6 +36382,51 @@
         "title": "MonthlyPoint",
         "type": "object"
       },
+      "MoonChoice": {
+        "description": "One known moon a Metenox report can be tied to.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "moon": {
+            "title": "Moon",
+            "type": "integer"
+          },
+          "planet": {
+            "title": "Planet",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "system",
+          "planet",
+          "moon"
+        ],
+        "title": "MoonChoice",
+        "type": "object"
+      },
+      "MoonChoiceList": {
+        "properties": {
+          "moons": {
+            "items": {
+              "$ref": "#/components/schemas/MoonChoice"
+            },
+            "title": "Moons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "moons"
+        ],
+        "title": "MoonChoiceList",
+        "type": "object"
+      },
       "MoonDetailResponse": {
         "properties": {
           "monthly_revenue": {
@@ -36232,6 +36450,35 @@
           "reported_by"
         ],
         "title": "MoonDetailResponse",
+        "type": "object"
+      },
+      "MoonDrill": {
+        "description": "A Metenox Moon Drill a pilot reported on this moon.",
+        "properties": {
+          "alliance_name": {
+            "default": "",
+            "title": "Alliance Name",
+            "type": "string"
+          },
+          "corporation_name": {
+            "default": "",
+            "title": "Corporation Name",
+            "type": "string"
+          },
+          "reported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported At"
+          }
+        },
+        "title": "MoonDrill",
         "type": "object"
       },
       "MoonMetenoxKill": {
@@ -49548,6 +49795,17 @@
             "title": "Fitting",
             "type": "string"
           },
+          "moon_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moon Id"
+          },
           "name": {
             "default": "",
             "title": "Name",
@@ -54369,6 +54627,16 @@
       },
       "UniverseMoon": {
         "properties": {
+          "drill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoonDrill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -55135,6 +55403,17 @@
             ],
             "title": "Location Id"
           },
+          "mumble_open": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mumble Open"
+          },
           "objective": {
             "anyOf": [
               {
@@ -55212,6 +55491,17 @@
                 "type": "null"
               }
             ]
+          },
+          "voice_channel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Channel Id"
           },
           "voice_option_id": {
             "anyOf": [
@@ -69109,7 +69399,7 @@
             "AuthBearer": []
           }
         ],
-        "summary": "Put a member on leave or take them off leave",
+        "summary": "Put a member on leave, make them alumni, or restore them",
         "tags": [
           "Corporations",
           "Corporations"
@@ -71850,7 +72140,7 @@
     },
     "/api/fleets/voice-options": {
       "get": {
-        "description": "The voice options the fleet form offers (active ones only). Same access as /types.",
+        "description": "The voice options the fleet form offers (active ones only), with each Discord option's voice channels. Same access as /types.",
         "operationId": "fleets_endpoints_reference_get_fleet_voice_options_get_fleet_voice_options",
         "parameters": [],
         "responses": {
@@ -99658,7 +99948,7 @@
     },
     "/api/universe/moons": {
       "get": {
-        "description": "One page of the moons we know about, searched by system, planet,\nmoon number and (for those who see contents) ore. Contents (ores,\nscans, ISK a month, Metenox kills) are null unless the caller may see\nthem, so the shape never changes; only they can filter by rarity and\nhide moons whose fuel costs more than they earn.",
+        "description": "One page of the moons we know about, searched by system, planet,\nmoon number and (for those who see contents) ore. Contents (ores,\nscans, ISK a month, Metenox kills, the reported drill) are null unless\nthe caller may see them, so the shape never changes; only they can\nfilter by rarity and hide moons whose fuel costs more than they earn.",
         "operationId": "universe_router_list_moons",
         "parameters": [
           {
@@ -99740,6 +100030,55 @@
           }
         ],
         "summary": "List Moons",
+        "tags": [
+          "Universe"
+        ]
+      }
+    },
+    "/api/universe/moons/choices": {
+      "get": {
+        "description": "Moons we have scanned in one system, for the Metenox report picker.\n\nOnly pilots who can see moons get the list. An unknown system, or one\nwith no scans, is an empty list so the report can still be saved.",
+        "operationId": "universe_router_moon_choices",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_name",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "System Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoonChoiceList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ],
+        "summary": "Moon Choices",
         "tags": [
           "Universe"
         ]

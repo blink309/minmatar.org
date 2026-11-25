@@ -11,8 +11,9 @@
 import { i18n, t_key } from '@helpers/i18n'
 const { t, translatePath } = i18n(Astro.url)
 
-import type { UniverseStructure } from '@dtypes/api.minmatar.org'
+import type { UniverseMoonChoice, UniverseStructure } from '@dtypes/api.minmatar.org'
 import { get_item_icon } from '@helpers/eve_image'
+import { moon_choice_label } from '@helpers/universe_moon_label'
 
 export interface UniverseReportState {
     system_name:                string;
@@ -23,6 +24,12 @@ export interface UniverseReportState {
     corporation_name:           string;
     fitting:                    string;
     reinforce_hour:             number | null;
+    /** Set when the report was opened from a moon row. */
+    moon_id:                    number | null;
+    /** The moon row locked this report to moon_id. */
+    moon_locked:                boolean;
+    /** "Amamake VII-1", shown when the moon is locked. */
+    moon_label:                 string;
 }
 
 export type UniverseReportStep = 'find' | 'match' | 'owner' | 'fitting' | 'reinforce' | 'sent'
@@ -32,17 +39,25 @@ interface Props {
     state?:         Partial<UniverseReportState>;
     candidates?:    UniverseStructure[];
     picked?:        UniverseStructure | null;
+    /**
+     * Moons in the chosen system. Null when this step does not offer a
+     * picker (not a Metenox, or the pilot cannot see moons).
+     */
+    moon_choices?:  UniverseMoonChoice[] | null;
     error?:         string | null;
     /** The Selected Item text as pasted, kept when it could not be read. */
     selected_item?: string;
 }
 
-const { step, candidates = [], picked = null, error = null } = Astro.props
+const { step, candidates = [], picked = null, moon_choices = null, error = null } = Astro.props
 const state: UniverseReportState = {
     system_name: '', type_id: null, name: '', structure_id: null, campaign_slug: '',
-    corporation_name: '', fitting: '', reinforce_hour: null,
+    corporation_name: '', fitting: '', reinforce_hour: null, moon_id: null,
+    moon_locked: false, moon_label: '',
     ...(Astro.props.state ?? {}),
 }
+const METENOX_MOON_DRILL = 81826
+const picker_moons = step === 'match' && state.type_id === METENOX_MOON_DRILL && !state.moon_locked ? moon_choices : null
 
 // Types a pilot can report; the backend holds the same list.
 const REPORTABLE_TYPES: [number, string][] = [
@@ -87,8 +102,14 @@ const VISIBLE: Record<UniverseReportStep, string[]> = {
 const pasted = Astro.props.selected_item || (state.system_name && state.name
     ? (state.name.toLowerCase().startsWith(state.system_name.toLowerCase()) ? state.name : `${state.system_name} - ${state.name}`)
     : '')
-const carried = (Object.entries(state) as [string, string | number | null][])
-    .filter(([key]) => !VISIBLE[step].includes(key))
+const shown = new Set(VISIBLE[step])
+if (picker_moons && picker_moons.length > 0) shown.add('moon_id')
+const field_value = (key: string, value: string | number | boolean | null): string | number => {
+    if (key === 'moon_locked' || typeof value === 'boolean') return value ? '1' : ''
+    return value ?? ''
+}
+const carried = (Object.entries(state) as [string, string | number | boolean | null][])
+    .filter(([key]) => !shown.has(key))
 
 import Button from '@components/blocks/Button.astro'
 import StylessButton from '@components/blocks/StylessButton.astro'
@@ -102,7 +123,7 @@ import OptionCard from '@components/blocks/OptionCard.astro'
 ---
 
 <StructureSteps title={t('universe.report.title')} steps_label={t('universe.report.steps')} steps={steps} current={current}>
-    {step !== 'sent' && carried.map(([key, value]) => <input type="hidden" name={key} value={value ?? ''} />)}
+    {step !== 'sent' && carried.map(([key, value]) => <input type="hidden" name={key} value={field_value(key, value)} />)}
 
     {error && <p class="[ manage-field__error ]" role="alert">{error}</p>}
 
@@ -161,6 +182,18 @@ import OptionCard from '@components/blocks/OptionCard.astro'
                     </div>
                 </OptionCard>
             </fieldset>
+            {state.moon_locked && <p class="[ universe-report__moon-note ]">{t('universe.report.moon_locked').replace('~MOON', state.moon_label)}</p>}
+            {picker_moons && picker_moons.length > 0 &&
+                <ManageField label={t('universe.report.moon')} for="universe-report-moon" hint={t('universe.report.moon_hint')}>
+                    <Select id="universe-report-moon" name="moon_id" size="sm">
+                        <option value="" selected={state.moon_id === null}>{t('universe.report.moon_none')}</option>
+                        {picker_moons.map((moon) => (
+                            <option value={moon.id} selected={state.moon_id === moon.id}>{moon_choice_label(moon.system, moon.planet, moon.moon)}</option>
+                        ))}
+                    </Select>
+                </ManageField>
+            }
+            {picker_moons && picker_moons.length === 0 && <p class="[ universe-report__moon-note ]">{t('universe.report.moon_none_in_system')}</p>}
             <div class="[ manage-actions ]">
                 <Button type="button" size="sm" color="fleet-red" {...move('owner', { prefill: '1' })}>{t('universe.report.next')}</Button>
                 <Button type="button" size="sm" color="transparent" {...move('find')}>{t('universe.report.back')}</Button>
@@ -244,5 +277,11 @@ import OptionCard from '@components/blocks/OptionCard.astro'
         small {
             color: var(--faded);
         }
+    }
+
+    .universe-report__moon-note {
+        margin: 0;
+        color: var(--foreground);
+        font-size: var(--step--1);
     }
 </style>
