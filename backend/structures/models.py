@@ -101,6 +101,16 @@ class EveStructure(MinmatarSoftDeleteModel):
     # Admins merge these by hand in Django admin.
     possible_duplicate = models.BooleanField(default=False)
 
+    # The moon a reported Metenox Moon Drill sits on. Empty for every other
+    # structure, and for a drill nobody has tied to a moon.
+    moon = models.ForeignKey(
+        "moons.EveMoon",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drills",
+    )
+
     # Reported rows have no ESI id. They take ids from this far-negative
     # range, clear of the negative ids structure pings use for orbitals.
     REPORTED_ID_BASE = -1_000_000_000_000_000
@@ -124,7 +134,8 @@ class EveStructure(MinmatarSoftDeleteModel):
         return super().delete(force_policy=force_policy, **kwargs)
 
     def __str__(self):
-        return str(f"{self.owner_name or 'Unknown'} - {self.name}")
+        owner = self.owner_name or "Unknown"
+        return str(f"{owner} - {self.name}")
 
 
 class EveStructureTimer(models.Model):

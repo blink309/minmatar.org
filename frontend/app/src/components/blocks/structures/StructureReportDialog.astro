@@ -3,8 +3,10 @@
  * The Report a structure button and its stepped dialog (Find → Match →
  * Details → Sent, with clips of each step in the client). Every page that
  * reports an enemy structure opens this one: Universe > Structures, a
- * campaign's Structures tab and the intel structure pages. Pass
- * campaign_slug to attach the report to that campaign too.
+ * campaign's Structures tab, the intel structure pages and a moon row
+ * (Report drill). Pass campaign_slug to attach the report to that
+ * campaign too. Pass type_id, system_name and moon_id to start the first
+ * step already filled in; moon_id is stored on a Metenox Moon Drill.
  */
 import { i18n } from '@helpers/i18n'
 const { t, translatePath } = i18n(Astro.url)
@@ -16,6 +18,14 @@ interface Props {
     label?:             string;
     size?:              ButtonSizes;
     color?:             ButtonColors;
+    /** Prefilled structure type (a Metenox Moon Drill from a moon row). */
+    type_id?:           number | null;
+    /** Prefilled solar system. */
+    system_name?:       string;
+    /** Moon to store on a Metenox Moon Drill. */
+    moon_id?:           number | null;
+    /** Stem for the button and form ids, so one page can open several. */
+    form_id?:           string;
     [propName: string]: any;
 }
 
@@ -24,6 +34,10 @@ const {
     label,
     size = 'sm',
     color = 'fleet-red',
+    type_id = null,
+    system_name = '',
+    moon_id = null,
+    form_id = 'universe-report',
     ...attributes
 } = Astro.props
 
@@ -35,10 +49,10 @@ import DialogButton from '@components/blocks/DialogButton.astro'
 import UniverseReportSteps from '@components/blocks/universe/UniverseReportSteps.astro'
 ---
 
-<DialogButton size={size} color={color} max_width="52rem" id="universe-report-button" class={Astro.props.class} {...attributes}>
+<DialogButton size={size} color={color} max_width="52rem" id={`${form_id}-button`} class={Astro.props.class} {...attributes}>
     <slot name="icon" slot="icon" />
     {label ?? t('universe.structures.report')}
-    <form slot="dialog" id="universe-report" hx-post={URL} hx-target="this" hx-swap="innerHTML" x-on:submit.prevent="">
-        <UniverseReportSteps step="find" state={{ campaign_slug }} />
+    <form slot="dialog" id={form_id} hx-post={URL} hx-target="this" hx-swap="innerHTML" x-on:submit.prevent="">
+        <UniverseReportSteps step="find" state={{ campaign_slug, type_id, system_name, moon_id }} />
     </form>
 </DialogButton>

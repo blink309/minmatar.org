@@ -131,8 +131,9 @@ def manages_alliance_structures(user) -> bool:
 
 
 def can_see_moon_contents(user) -> bool:
-    """Ores, scans and ISK a month: Strategic FCs, the alliance's structure
-    managers and superusers. Everyone else sees only which moons exist."""
+    """Ores, scans, ISK a month and the reported Metenox drill: Strategic
+    FCs, the alliance's structure managers and superusers. Everyone else
+    sees only which moons exist."""
     if not _signed_in(user):
         return False
     if user.is_superuser:

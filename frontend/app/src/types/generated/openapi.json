@@ -36407,6 +36407,35 @@
         "title": "MoonDetailResponse",
         "type": "object"
       },
+      "MoonDrill": {
+        "description": "A Metenox Moon Drill a pilot reported on this moon.",
+        "properties": {
+          "alliance_name": {
+            "default": "",
+            "title": "Alliance Name",
+            "type": "string"
+          },
+          "corporation_name": {
+            "default": "",
+            "title": "Corporation Name",
+            "type": "string"
+          },
+          "reported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported At"
+          }
+        },
+        "title": "MoonDrill",
+        "type": "object"
+      },
       "MoonMetenoxKill": {
         "properties": {
           "attacker_count": {
@@ -49721,6 +49750,17 @@
             "title": "Fitting",
             "type": "string"
           },
+          "moon_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moon Id"
+          },
           "name": {
             "default": "",
             "title": "Name",
@@ -54542,6 +54582,16 @@
       },
       "UniverseMoon": {
         "properties": {
+          "drill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoonDrill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -99853,7 +99903,7 @@
     },
     "/api/universe/moons": {
       "get": {
-        "description": "One page of the moons we know about, searched by system, planet,\nmoon number and (for those who see contents) ore. Contents (ores,\nscans, ISK a month, Metenox kills) are null unless the caller may see\nthem, so the shape never changes; only they can filter by rarity and\nhide moons whose fuel costs more than they earn.",
+        "description": "One page of the moons we know about, searched by system, planet,\nmoon number and (for those who see contents) ore. Contents (ores,\nscans, ISK a month, Metenox kills, the reported drill) are null unless\nthe caller may see them, so the shape never changes; only they can\nfilter by rarity and hide moons whose fuel costs more than they earn.",
         "operationId": "universe_router_list_moons",
         "parameters": [
           {

@@ -23,6 +23,8 @@ export interface UniverseReportState {
     corporation_name:           string;
     fitting:                    string;
     reinforce_hour:             number | null;
+    /** Set when the report was opened from a moon row. */
+    moon_id:                    number | null;
 }
 
 export type UniverseReportStep = 'find' | 'match' | 'owner' | 'fitting' | 'reinforce' | 'sent'
@@ -40,7 +42,7 @@ interface Props {
 const { step, candidates = [], picked = null, error = null } = Astro.props
 const state: UniverseReportState = {
     system_name: '', type_id: null, name: '', structure_id: null, campaign_slug: '',
-    corporation_name: '', fitting: '', reinforce_hour: null,
+    corporation_name: '', fitting: '', reinforce_hour: null, moon_id: null,
     ...(Astro.props.state ?? {}),
 }
 

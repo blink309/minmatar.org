@@ -11334,9 +11334,9 @@ export interface paths {
          * List Moons
          * @description One page of the moons we know about, searched by system, planet,
          *     moon number and (for those who see contents) ore. Contents (ores,
-         *     scans, ISK a month, Metenox kills) are null unless the caller may see
-         *     them, so the shape never changes; only they can filter by rarity and
-         *     hide moons whose fuel costs more than they earn.
+         *     scans, ISK a month, Metenox kills, the reported drill) are null unless
+         *     the caller may see them, so the shape never changes; only they can
+         *     filter by rarity and hide moons whose fuel costs more than they earn.
          */
         get: operations["universe_router_list_moons"];
         put?: never;
@@ -26386,6 +26386,24 @@ export interface components {
             /** Reported By */
             reported_by: string;
         };
+        /**
+         * MoonDrill
+         * @description A Metenox Moon Drill a pilot reported on this moon.
+         */
+        MoonDrill: {
+            /**
+             * Alliance Name
+             * @default
+             */
+            alliance_name?: string;
+            /**
+             * Corporation Name
+             * @default
+             */
+            corporation_name?: string;
+            /** Reported At */
+            reported_at?: string | null;
+        };
         /** MoonMetenoxKill */
         MoonMetenoxKill: {
             /**
@@ -31973,6 +31991,8 @@ export interface components {
              * @default
              */
             fitting?: string;
+            /** Moon Id */
+            moon_id?: number | null;
             /**
              * Name
              * @default
@@ -33990,6 +34010,7 @@ export interface components {
         };
         /** UniverseMoon */
         UniverseMoon: {
+            drill?: components["schemas"]["MoonDrill"] | null;
             /** Id */
             id: number;
             /** Last Scanned At */

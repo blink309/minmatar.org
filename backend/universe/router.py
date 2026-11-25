@@ -45,6 +45,7 @@ from moons.models import (
 from moons.parser import MoonParsingResult, process_moon_paste
 from structures.models import EveStructure, EveStructureTimer
 from structures.reported import (
+    METENOX_MOON_DRILL,
     REPORTABLE_TYPES,
     ReportDetails,
     ReportError,
@@ -131,6 +132,9 @@ class StructureReportRequest(Schema):
     alliance_name: str = ""
     reinforce_hour: Optional[int] = None
     fitting: str = ""
+    # The moon this Metenox drill sits on, from Universe > Moons. Ignored
+    # unless the structure is a Metenox Moon Drill.
+    moon_id: Optional[int] = None
 
 
 class StructureReportResponse(Schema):
@@ -193,6 +197,14 @@ class MoonProfit(Schema):
     priced_at: Optional[datetime] = None
 
 
+class MoonDrill(Schema):
+    """A Metenox Moon Drill a pilot reported on this moon."""
+
+    corporation_name: str = ""
+    alliance_name: str = ""
+    reported_at: Optional[datetime] = None
+
+
 class MoonMetenoxKill(Schema):
     killmail_id: int
     killed_at: datetime
@@ -223,6 +235,9 @@ class UniverseMoon(Schema):
     scans: Optional[List[MoonScanRef]] = None
     # Metenox drills killed here, newest first.
     metenox_kills: Optional[List[MoonMetenoxKill]] = None
+    # The drill a pilot reported here. Null unless the caller may see moon
+    # contents, and null when none has been reported.
+    drill: Optional[MoonDrill] = None
 
 
 class MoonRarityCount(Schema):
@@ -465,7 +480,13 @@ def report_structure(request, payload: StructureReportRequest):
         fitting=payload.fitting,
     )
     try:
-        record_report(request.user, details, picked, visible)
+        record_report(
+            request.user,
+            details,
+            picked,
+            visible,
+            moon_id=payload.moon_id,
+        )
     except ReportError as error:
         return 400, ErrorResponse(detail=str(error))
     return StructureReportResponse(status="recorded")
@@ -620,9 +641,9 @@ def list_moons(
 ):
     """One page of the moons we know about, searched by system, planet,
     moon number and (for those who see contents) ore. Contents (ores,
-    scans, ISK a month, Metenox kills) are null unless the caller may see
-    them, so the shape never changes; only they can filter by rarity and
-    hide moons whose fuel costs more than they earn."""
+    scans, ISK a month, Metenox kills, the reported drill) are null unless
+    the caller may see them, so the shape never changes; only they can
+    filter by rarity and hide moons whose fuel costs more than they earn."""
     if not can_use_feature(request.user, MOONS_FEATURE):
         return 403, ErrorResponse(detail="You cannot view moons")
     contents = can_see_moon_contents(request.user)
@@ -678,25 +699,7 @@ def list_moons(
     offset = (page - 1) * page_size
     moons = list(
         moons[offset : offset + page_size].prefetch_related(
-            Prefetch(
-                "evemoondistribution_set",
-                queryset=EveMoonDistribution.objects.order_by(
-                    "-yield_percent"
-                ),
-                to_attr="ores",
-            ),
-            Prefetch(
-                "scans",
-                queryset=EveMoonScan.objects.order_by("-reported_at", "-id"),
-                to_attr="scan_rows",
-            ),
-            Prefetch(
-                "metenox_kills",
-                queryset=MetenoxKill.objects.order_by(
-                    "-killed_at", "-killmail_id"
-                ),
-                to_attr="kill_rows",
-            ),
+            *_moon_prefetches(contents)
         )
     )
     user_ids = {m.reported_by_id for m in moons if m.reported_by_id}
@@ -748,6 +751,7 @@ def list_moons(
                 )
                 for s in moon.scan_rows
             ]
+            row.drill = _moon_drill(moon)
         rows.append(row)
     return UniverseMoonList(
         moons=rows,
@@ -758,6 +762,60 @@ def list_moons(
         page_size=page_size,
         rarity_counts=rarity_counts,
         unprofitable_hidden=unprofitable_hidden,
+    )
+
+
+def _moon_prefetches(contents: bool):
+    """Ores, scans and kills for one page. The drill is contents, so a
+    pilot who only sees that a moon exists never loads who holds it."""
+    prefetches = [
+        Prefetch(
+            "evemoondistribution_set",
+            queryset=EveMoonDistribution.objects.order_by("-yield_percent"),
+            to_attr="ores",
+        ),
+        Prefetch(
+            "scans",
+            queryset=EveMoonScan.objects.order_by("-reported_at", "-id"),
+            to_attr="scan_rows",
+        ),
+        Prefetch(
+            "metenox_kills",
+            queryset=MetenoxKill.objects.order_by(
+                "-killed_at", "-killmail_id"
+            ),
+            to_attr="kill_rows",
+        ),
+    ]
+    if contents:
+        prefetches.append(_drill_prefetch())
+    return prefetches
+
+
+def _drill_prefetch():
+    """Metenox drills on a moon, most recently confirmed first."""
+    return Prefetch(
+        "drills",
+        queryset=EveStructure.objects.filter(type_id=METENOX_MOON_DRILL)
+        .select_related("corporation", "corporation__alliance")
+        .order_by(
+            F("last_confirmed_at").desc(nulls_last=True),
+            F("reported_at").desc(nulls_last=True),
+            "-id",
+        ),
+        to_attr="drill_rows",
+    )
+
+
+def _moon_drill(moon) -> Optional[MoonDrill]:
+    rows = getattr(moon, "drill_rows", None) or []
+    if not rows:
+        return None
+    drill = rows[0]
+    return MoonDrill(
+        corporation_name=drill.owner_name or "",
+        alliance_name=_alliance_name(drill),
+        reported_at=drill.reported_at,
     )
 
 

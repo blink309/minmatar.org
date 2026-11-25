@@ -39,6 +39,7 @@ const state: UniverseReportState = {
     corporation_name: text('corporation_name'),
     fitting: text('fitting'),
     reinforce_hour: number('reinforce_hour'),
+    moon_id: number('moon_id'),
 }
 
 let step: UniverseReportStep = 'find'
@@ -98,6 +99,7 @@ try {
             corporation_name: state.corporation_name,
             reinforce_hour: state.reinforce_hour,
             fitting: state.fitting,
+            moon_id: state.moon_id,
         }
         await report_universe_structure(auth_token, report)
         const structure_type = state.type_id === null ? null : get_structure_type(state.type_id)
