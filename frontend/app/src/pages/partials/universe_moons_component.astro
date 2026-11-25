@@ -141,6 +141,7 @@ import MoonProfitTable from '@components/blocks/universe/MoonProfitTable.astro'
 import MoonMetenoxKills from '@components/blocks/universe/MoonMetenoxKills.astro'
 import MoonDrillSummary from '@components/blocks/universe/MoonDrillSummary.astro'
 import StructureReportDialog from '@components/blocks/structures/StructureReportDialog.astro'
+import { moon_choice_label } from '@helpers/universe_moon_label'
 ---
 
 <div id="universe-moons">
@@ -197,6 +198,7 @@ import StructureReportDialog from '@components/blocks/structures/StructureReport
                                             type_id={METENOX_MOON_DRILL}
                                             system_name={moon.system}
                                             moon_id={moon.id}
+                                            moon_label={moon_choice_label(moon.system, moon.planet, moon.moon)}
                                         />
                                     </div>
                                 )

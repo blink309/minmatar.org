@@ -261,6 +261,19 @@ class UniverseMoonList(Schema):
     unprofitable_hidden: int = 0
 
 
+class MoonChoice(Schema):
+    """One known moon a Metenox report can be tied to."""
+
+    id: int
+    system: str
+    planet: str
+    moon: int
+
+
+class MoonChoiceList(Schema):
+    moons: List[MoonChoice]
+
+
 class MoonReportRequest(Schema):
     paste: str
 
@@ -623,6 +636,35 @@ def list_timers(request):
     return UniverseTimerList(
         timers=upcoming + done,
         can_add=can_use_feature(request.user, "structures.timers.manage"),
+    )
+
+
+@router.get(
+    "/moons/choices",
+    auth=AuthBearer(),
+    response={200: MoonChoiceList, 403: ErrorResponse},
+)
+def moon_choices(request, system_name: str = ""):
+    """Moons we have scanned in one system, for the Metenox report picker.
+
+    Only pilots who can see moons get the list. An unknown system, or one
+    with no scans, is an empty list so the report can still be saved.
+    """
+    if not can_use_feature(request.user, MOONS_FEATURE):
+        return 403, ErrorResponse(detail="You cannot view moons")
+    name = system_name.strip()
+    if not name:
+        return MoonChoiceList(moons=[])
+    rows = EveMoon.objects.filter(system__iexact=name).order_by(
+        "planet", "moon"
+    )
+    return MoonChoiceList(
+        moons=[
+            MoonChoice(
+                id=row.id, system=row.system, planet=row.planet, moon=row.moon
+            )
+            for row in rows
+        ]
     )
 
 

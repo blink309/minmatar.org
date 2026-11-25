@@ -396,9 +396,10 @@ def record_report(
     reporter cannot see, and the answer to the reporter is the same either
     way, so a report never tells them a hidden structure exists.
 
-    `moon_id` ties a Metenox Moon Drill to that moon. Other types ignore
-    it. An unknown moon, or one in another system, is an error and the
-    report is not stored.
+    `moon_id` ties a Metenox Moon Drill to that moon when the drill has
+    none yet. A drill that already names a moon keeps it. Other types
+    ignore it. An unknown moon, or one in another system, is an error and
+    the report is not stored.
     """
     # Name lookup (ESI) stays outside the transaction.
     details = _clean(details)
@@ -407,7 +408,13 @@ def record_report(
         raise ReportError("We do not know that system. Check its spelling.")
     with transaction.atomic():
         structure = _store_report(user, details, picked, visible, system_id)
-        if moon_id and structure.type_id == METENOX_MOON_DRILL:
+        # A later report can fill in the moon. It does not move a drill
+        # that already has one.
+        if (
+            moon_id
+            and structure.type_id == METENOX_MOON_DRILL
+            and structure.moon_id is None
+        ):
             _link_moon(structure, moon_id)
         return structure
 

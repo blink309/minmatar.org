@@ -11347,6 +11347,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/universe/moons/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Moon Choices
+         * @description Moons we have scanned in one system, for the Metenox report picker.
+         *
+         *     Only pilots who can see moons get the list. An unknown system, or one
+         *     with no scans, is an empty list so the report can still be saved.
+         */
+        get: operations["universe_router_moon_choices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/universe/moons/report": {
         parameters: {
             query?: never;
@@ -26378,6 +26401,25 @@ export interface components {
              * @default 0
              */
             supply?: number;
+        };
+        /**
+         * MoonChoice
+         * @description One known moon a Metenox report can be tied to.
+         */
+        MoonChoice: {
+            /** Id */
+            id: number;
+            /** Moon */
+            moon: number;
+            /** Planet */
+            planet: string;
+            /** System */
+            system: string;
+        };
+        /** MoonChoiceList */
+        MoonChoiceList: {
+            /** Moons */
+            moons: components["schemas"]["MoonChoice"][];
         };
         /** MoonDetailResponse */
         MoonDetailResponse: {
@@ -63209,6 +63251,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UniverseMoonList"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    universe_router_moon_choices: {
+        parameters: {
+            query?: {
+                system_name?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoonChoiceList"];
                 };
             };
             /** @description Forbidden */

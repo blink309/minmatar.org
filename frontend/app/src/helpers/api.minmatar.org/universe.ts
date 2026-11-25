@@ -5,6 +5,7 @@ import type {
     UniverseStructureReport,
     UniverseTimerList,
     UniverseMoonList,
+    UniverseMoonChoiceList,
     UniverseMoonReport,
 } from '@dtypes/api.minmatar.org'
 import { api_request } from '@helpers/api.minmatar.org/client'
@@ -53,6 +54,15 @@ export async function get_universe_timers(access_token:string) {
     return await api_request<UniverseTimerList>(`${API_ENDPOINT}/timers`, {
         token: access_token,
         error: 'Error fetching timers',
+    })
+}
+
+export async function get_universe_moon_choices(access_token:string, system_name:string) {
+    const params = new URLSearchParams({ system_name })
+    // 403: the pilot cannot see moons, so the report continues without a picker.
+    return await api_request<UniverseMoonChoiceList>(`${API_ENDPOINT}/moons/choices?${params}`, {
+        token: access_token,
+        allow: [403],
     })
 }
 

@@ -10,10 +10,10 @@
 import { i18n } from '@helpers/i18n'
 const { t } = i18n(Astro.url)
 
-import type { UniverseStructure } from '@dtypes/api.minmatar.org'
+import type { UniverseMoonChoice, UniverseStructure } from '@dtypes/api.minmatar.org'
 import { get_request_user } from '@helpers/request_user'
 import { HTTP_403_Forbidden } from '@helpers/http_responses'
-import { match_universe_structures, report_universe_structure } from '@helpers/api.minmatar.org/universe'
+import { get_universe_moon_choices, match_universe_structures, report_universe_structure } from '@helpers/api.minmatar.org/universe'
 import { attach_campaign_structure } from '@helpers/api.minmatar.org/campaigns'
 import { get_structure_type } from '@helpers/eve'
 import { parse_selected_item_timer } from '@helpers/selected_item_timer'
@@ -40,12 +40,16 @@ const state: UniverseReportState = {
     fitting: text('fitting'),
     reinforce_hour: number('reinforce_hour'),
     moon_id: number('moon_id'),
+    moon_locked: text('moon_locked') === '1',
+    moon_label: text('moon_label'),
 }
 
 let step: UniverseReportStep = 'find'
 let candidates: UniverseStructure[] = []
 let picked: UniverseStructure | null = null
+let moon_choices: UniverseMoonChoice[] | null = null
 let error: string | null = null
+const METENOX_MOON_DRILL = 81826
 const go = text('go') || 'find'
 
 // The structures in that system like the one described, or an error for an unknown system.
@@ -55,6 +59,17 @@ const find_candidates = async () => {
     const match = await match_universe_structures(auth_token, state.system_name, state.type_id, state.name)
     if (!match?.system_found) throw new Error(t('universe.report.unknown_system'))
     return match.candidates
+}
+
+// Known moons in this system, for an optional Metenox picker. Null when the
+// pilot cannot see moons: the report still goes through.
+const load_moon_choices = async () => {
+    if (state.moon_locked || state.type_id !== METENOX_MOON_DRILL || !state.system_name) return
+    const list = await get_universe_moon_choices(auth_token, state.system_name)
+    if (!list) return
+    moon_choices = list.moons
+    if (state.moon_id !== null && !moon_choices.some((moon) => moon.id === state.moon_id))
+        state.moon_id = null
 }
 
 // The Selected Item window gives the system and the name on its first line;
@@ -74,6 +89,7 @@ try {
     if (go === 'match') {
         read_selected_item()
         candidates = await find_candidates()
+        await load_moon_choices()
         step = 'match'
     } else if (go === 'owner') {
         if (text('prefill') && state.structure_id !== null) {
@@ -121,4 +137,4 @@ try {
 }
 ---
 
-<UniverseReportSteps step={step} state={state} candidates={candidates} picked={picked} error={error} selected_item={error && step === 'find' ? text('selected_item') : ''} />
+<UniverseReportSteps step={step} state={state} candidates={candidates} picked={picked} moon_choices={moon_choices} error={error} selected_item={error && step === 'find' ? text('selected_item') : ''} />

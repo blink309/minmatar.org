@@ -24,6 +24,8 @@ interface Props {
     system_name?:       string;
     /** Moon to store on a Metenox Moon Drill. */
     moon_id?:           number | null;
+    /** Shown when moon_id is locked, e.g. "Amamake VII-1". */
+    moon_label?:        string;
     /** Stem for the button and form ids, so one page can open several. */
     form_id?:           string;
     [propName: string]: any;
@@ -37,6 +39,7 @@ const {
     type_id = null,
     system_name = '',
     moon_id = null,
+    moon_label = '',
     form_id = 'universe-report',
     ...attributes
 } = Astro.props
@@ -53,6 +56,6 @@ import UniverseReportSteps from '@components/blocks/universe/UniverseReportSteps
     <slot name="icon" slot="icon" />
     {label ?? t('universe.structures.report')}
     <form slot="dialog" id={form_id} hx-post={URL} hx-target="this" hx-swap="innerHTML" x-on:submit.prevent="">
-        <UniverseReportSteps step="find" state={{ campaign_slug, type_id, system_name, moon_id }} />
+        <UniverseReportSteps step="find" state={{ campaign_slug, type_id, system_name, moon_id, moon_locked: moon_id !== null, moon_label }} />
     </form>
 </DialogButton>

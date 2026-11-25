@@ -36382,6 +36382,51 @@
         "title": "MonthlyPoint",
         "type": "object"
       },
+      "MoonChoice": {
+        "description": "One known moon a Metenox report can be tied to.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "moon": {
+            "title": "Moon",
+            "type": "integer"
+          },
+          "planet": {
+            "title": "Planet",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "system",
+          "planet",
+          "moon"
+        ],
+        "title": "MoonChoice",
+        "type": "object"
+      },
+      "MoonChoiceList": {
+        "properties": {
+          "moons": {
+            "items": {
+              "$ref": "#/components/schemas/MoonChoice"
+            },
+            "title": "Moons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "moons"
+        ],
+        "title": "MoonChoiceList",
+        "type": "object"
+      },
       "MoonDetailResponse": {
         "properties": {
           "monthly_revenue": {
@@ -99985,6 +100030,55 @@
           }
         ],
         "summary": "List Moons",
+        "tags": [
+          "Universe"
+        ]
+      }
+    },
+    "/api/universe/moons/choices": {
+      "get": {
+        "description": "Moons we have scanned in one system, for the Metenox report picker.\n\nOnly pilots who can see moons get the list. An unknown system, or one\nwith no scans, is an empty list so the report can still be saved.",
+        "operationId": "universe_router_moon_choices",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_name",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "System Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoonChoiceList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ],
+        "summary": "Moon Choices",
         "tags": [
           "Universe"
         ]

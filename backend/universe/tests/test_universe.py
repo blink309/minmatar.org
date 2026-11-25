@@ -949,6 +949,50 @@ class MetenoxDrillTests(UniverseFixture):
         row.refresh_from_db()
         self.assertEqual(row.moon_id, self.moon.id)
 
+    def test_rereport_does_not_move_a_drill_that_has_a_moon(self, _):
+        other = EveMoon.objects.create(system="Amamake", planet="VIII", moon=2)
+        row = _drill(self.moon, name="Amamake - standing drill")
+        response = self._report(
+            self.pilots["member"], structure_id=row.id, moon_id=other.id
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertEqual(row.moon_id, self.moon.id)
+
+    def test_moon_choices_list_one_system(self, _):
+        EveMoon.objects.create(system="Amamake", planet="VIII", moon=9)
+        EveMoon.objects.create(system="amamake", planet="II", moon=1)
+        EveMoon.objects.create(system="Taisy", planet="I", moon=3)
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Amamake",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        labels = [
+            (row["planet"], row["moon"]) for row in response.json()["moons"]
+        ]
+        self.assertEqual(labels, [("II", 1), ("VII", 3), ("VIII", 9)])
+        self.assertTrue(all(row["system"] for row in response.json()["moons"]))
+
+    def test_moon_choices_for_an_unknown_system_are_empty(self, _):
+        response = self.get(
+            self.pilots["member"], "/api/universe/moons/choices?system_name="
+        )
+        self.assertEqual(response.json()["moons"], [])
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Nowhere",
+        )
+        self.assertEqual(response.json()["moons"], [])
+
+    def test_moon_choices_need_moons_view(self, allow):
+        allow.side_effect = lambda _user, feature: feature != "moons.view"
+        response = self.get(
+            self.pilots["member"],
+            "/api/universe/moons/choices?system_name=Amamake",
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_refused_reporter_stores_nothing(self, allow):
         allow.return_value = False
         before = EveStructure.objects.count()
